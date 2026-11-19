@@ -1,0 +1,8 @@
+# Keep private modules trackable in parent checkouts with broad ignore rules.
+!ovsensors/_src/
+!ovsensors/_src/**
+
+# Ignore generated Python files after the source exceptions.
+__pycache__/
+*.py[cod]
+.pytest_cache/

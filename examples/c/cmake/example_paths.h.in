@@ -1,0 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: LicenseRef-NvidiaProprietary
+#ifndef OVSENSORS_EXAMPLE_PATHS_H
+#define OVSENSORS_EXAMPLE_PATHS_H
+#define OVSENSORS_EXAMPLE_OVRTX_LIBRARY "$<TARGET_FILE:ovrtx::ovrtx>"
+#endif

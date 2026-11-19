@@ -1,0 +1,32 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+# Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: LicenseRef-NvidiaProprietary
+
+def Xform "World"
+{
+    def Xform "Transform"
+    {
+        matrix4d xformOp:transform = ((1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 2, 3, 1))
+        uniform token[] xformOpOrder = ["xformOp:transform"]
+    }
+
+    def "Plain"
+    {
+    }
+
+    def RenderProduct "Pose"
+    {
+        rel camera = </World/Transform>
+    }
+
+    def RenderProduct "PlainPose"
+    {
+        rel camera = </World/Plain>
+    }
+}

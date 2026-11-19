@@ -1,0 +1,31 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: LicenseRef-NvidiaProprietary
+
+#include <windows.h>
+#include <delayimp.h>
+#include <cstring>
+#include <string>
+#include <system_error>
+
+namespace {
+FARPROC WINAPI loadSelectedRuntime(unsigned notification, PDelayLoadInfo info)
+{
+    if (notification != dliNotePreLoadLibrary) return nullptr;
+    const struct { const char* name; const wchar_t* path; } libraries[] = {
+        {"$<TARGET_FILE_NAME:ovsensors::ovsensors>", LR"dll($<TARGET_FILE:ovsensors::ovsensors>)dll"},
+        {"$<TARGET_FILE_NAME:ovstage::ovstage>", LR"dll($<TARGET_FILE:ovstage::ovstage>)dll"},
+    };
+    for (const auto& library : libraries) {
+        if (std::strcmp(info->szDll, library.name)) continue;
+        std::wstring path(library.path);
+        for (auto& character : path) if (character == L'/') character = L'\\';
+        auto module = LoadLibraryExW(path.c_str(), nullptr,
+            LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+        // A failed explicit selection must not fall back to a different installed DLL.
+        if (!module) throw std::system_error(GetLastError(), std::system_category(), library.name);
+        return reinterpret_cast<FARPROC>(module);
+    }
+    return nullptr;
+}
+}
+extern "C" const PfnDliHook __pfnDliNotifyHook2 = loadSelectedRuntime;

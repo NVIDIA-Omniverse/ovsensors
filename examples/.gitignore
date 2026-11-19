@@ -1,0 +1,9 @@
+# Build and run output from the runnable examples. The compile-only units in
+# smoke/ are configured out-of-tree too, so this covers them as well.
+build/
+build-*/
+_build/
+_deps/
+_output/
+*/.venv
+*/__pycache__/

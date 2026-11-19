@@ -1,0 +1,156 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+    startTimeCode = 0
+    endTimeCode = 120
+    timeCodesPerSecond = 60
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+# Two sensors on ONE stage at DIFFERENT authored cadences, so a steady-state
+# loop stepping at 1/30 s sees the camera produce on every tick and the lidar on
+# every third. That difference is the whole point of the scene: it makes cadence
+# holds happen on purpose rather than by accident.
+
+def Xform "World"
+{
+    # 30/1 -- due on every step of a 1/30 s loop.
+    def Camera "Camera" (
+        prepend apiSchemas = ["OmniSensorGenericCameraCoreAPI"]
+    )
+    {
+        double2 omni:sensor:frameRate = (30, 1)
+        double2 omni:sensor:startTime = (0, 1)
+
+        float focalLength = 24
+        double3 xformOp:translate = (8, -8, 2.5)
+        float3 xformOp:rotateXYZ = (78, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ"]
+    }
+
+    # 10/1 -- due on every THIRD step of the same loop. The two steps in between
+    # are cadence holds: SUCCESS, zero frames, nothing wrong.
+    def OmniLidar "Lidar" (
+        prepend apiSchemas = ["OmniSensorGenericLidarCoreAPI"]
+    )
+    {
+        double2 omni:sensor:frameRate = (10, 1)
+        double2 omni:sensor:startTime = (0, 1)
+
+        token omni:sensor:Core:elementsCoordsType = "CARTESIAN"
+        bool omni:sensor:Core:includeInvalidPoints = false
+        bool omni:sensor:Core:partialOutputs = false
+
+        double3 xformOp:translate = (0, 0, 1.5)
+        float3 xformOp:rotateXYZ = (90, 0, -90)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ"]
+    }
+
+    def Mesh "GroundPlane" (
+        prepend apiSchemas = ["MaterialBindingAPI"]
+    )
+    {
+        float3[] extent = [(-50, -50, 0), (50, 50, 0)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        point3f[] points = [(-50, -50, 0), (50, -50, 0), (50, 50, 0), (-50, 50, 0)]
+        normal3f[] normals = [(0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1)] (
+            interpolation = "faceVarying"
+        )
+        color3f[] primvars:displayColor = [(0.18, 0.18, 0.2)]
+        rel material:binding = </World/Materials/Asphalt>
+    }
+
+    def Cube "Box" (
+        prepend apiSchemas = ["MaterialBindingAPI"]
+    )
+    {
+        double size = 2
+        color3f[] primvars:displayColor = [(0.8, 0.35, 0.15)]
+        rel material:binding = </World/Materials/Concrete>
+        double3 xformOp:translate = (8, 0, 1)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+
+    def DistantLight "Key"
+    {
+        float intensity = 3000
+        float3 xformOp:rotateXYZ = (315, 0, 45)
+        uniform token[] xformOpOrder = ["xformOp:rotateXYZ"]
+    }
+
+    # Nonvisual attributes determine lidar returns; the surface shaders give
+    # the camera the same colors as the geometry's displayColor primvars.
+    def Xform "Materials"
+    {
+        def Material "Asphalt"
+        {
+            token omni:simready:nonvisual:base = "asphalt"
+            token omni:simready:nonvisual:coating = "none"
+            token[] omni:simready:nonvisual:attributes = ["none"]
+            token outputs:surface.connect = </World/Materials/Asphalt/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.18, 0.18, 0.2)
+                token outputs:surface
+            }
+        }
+
+        def Material "Concrete"
+        {
+            token omni:simready:nonvisual:base = "concrete"
+            token omni:simready:nonvisual:coating = "none"
+            token[] omni:simready:nonvisual:attributes = ["none"]
+            token outputs:surface.connect = </World/Materials/Concrete/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.8, 0.35, 0.15)
+                token outputs:surface
+            }
+        }
+    }
+}
+
+def "Render"
+{
+    def "Vars"
+    {
+        def RenderVar "LdrColor"
+        {
+            uniform string sourceName = "LdrColor"
+        }
+
+        # Counts is what bounds every per-point tensor. The model adds it (and
+        # Flags) whether or not they are requested, but naming it is clearer.
+        def RenderVar "PointCloud"
+        {
+            uniform string sourceName = "PointCloud"
+            token[] channels = [
+                "Coordinates",
+                "Intensity",
+                "Counts",
+            ]
+        }
+    }
+
+    def "Products"
+    {
+        def RenderProduct "CameraProduct"
+        {
+            uniform int2 resolution = (256, 256)
+            rel camera = </World/Camera>
+            rel orderedVars = [</Render/Vars/LdrColor>]
+        }
+
+        def RenderProduct "LidarProduct"
+        {
+            rel camera = </World/Lidar>
+            rel orderedVars = [</Render/Vars/PointCloud>]
+        }
+    }
+}

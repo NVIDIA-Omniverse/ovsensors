@@ -1,0 +1,6 @@
+# Local Python environments.
+.venv/
+.venv-sdk/
+
+# Output from the custom-provider example.
+/examples/c/custom-provider/output/

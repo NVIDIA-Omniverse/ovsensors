@@ -1,0 +1,98 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+    startTimeCode = 0
+    endTimeCode = 120
+    timeCodesPerSecond = 60
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+# The smallest stage ovsensors can adopt a sensor from: one sensor prim, one
+# RenderProduct that names it, one RenderVar for the product to produce, and
+# just enough geometry and light for the output to be worth reading.
+
+def Xform "World"
+{
+    # [snippet:configure-camera-sensor]
+    # A sensor prim is an ordinary USD prim carrying an APPLIED SCHEMA that some
+    # provider claims. OmniSensorGenericCameraCoreAPI is in the ovrtx provider's
+    # BUILT-IN claim set, which is what lets the example create its provider with
+    # no schema ids at all -- the ordinary case.
+    #
+    # omni:sensor:frameRate is the authored cadence, an exact rational read as
+    # (numerator, denominator). ovsensors resolves it at create_sensor and
+    # reports it on the descriptor; it never normalises or schedules it. A
+    # sensor whose cadence is not due on a given step produces zero frames, and
+    # that is a HOLD, not a failure.
+    def Camera "Camera" (
+        prepend apiSchemas = ["OmniSensorGenericCameraCoreAPI"]
+    )
+    {
+        double2 omni:sensor:frameRate = (30, 1)
+        double2 omni:sensor:startTime = (0, 1)
+
+        float focalLength = 24
+        float focusDistance = 8
+        double3 xformOp:translate = (0, -8, 2.5)
+        float3 xformOp:rotateXYZ = (78, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ"]
+    }
+    # [/snippet:configure-camera-sensor]
+
+    def Mesh "GroundPlane"
+    {
+        float3[] extent = [(-50, -50, 0), (50, 50, 0)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        point3f[] points = [(-50, -50, 0), (50, -50, 0), (50, 50, 0), (-50, 50, 0)]
+        normal3f[] normals = [(0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1)] (
+            interpolation = "faceVarying"
+        )
+        color3f[] primvars:displayColor = [(0.18, 0.18, 0.2)]
+    }
+
+    def Cube "Box"
+    {
+        double size = 2
+        color3f[] primvars:displayColor = [(0.8, 0.35, 0.15)]
+        double3 xformOp:translate = (0, 0, 1)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+
+    def DistantLight "Key"
+    {
+        float intensity = 3000
+        float3 xformOp:rotateXYZ = (315, 0, 45)
+        uniform token[] xformOpOrder = ["xformOp:rotateXYZ"]
+    }
+}
+
+# [snippet:configure-camera-product]
+# ovsensors is RENDERPRODUCT-CENTRIC, like ovrtx: a sensor IS the product prim
+# it adopts, not the sensor prim. The product's `camera` relationship names the
+# member sensor prims, in authored order, and ovsensors resolves them at
+# create_sensor -- that authored order is the order of descriptor.sources.
+#
+# This single-member product produces the image from /World/Camera.
+def "Render"
+{
+    def "Vars"
+    {
+        def RenderVar "LdrColor"
+        {
+            uniform string sourceName = "LdrColor"
+        }
+    }
+
+    def "Products"
+    {
+        def RenderProduct "CameraProduct"
+        {
+            uniform int2 resolution = (256, 256)
+            rel camera = </World/Camera>
+            rel orderedVars = [</Render/Vars/LdrColor>]
+        }
+    }
+}
+# [/snippet:configure-camera-product]
